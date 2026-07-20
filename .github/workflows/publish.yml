@@ -1,7 +1,5 @@
 name: Publish NuGet
 
-# Auto-publish when plugin sources change on main.
-# Version: optional override (must be > latest on nuget.org), else patch +0.0.1.
 on:
   push:
     branches: [main]
@@ -10,6 +8,7 @@ on:
       - "**/*.csproj"
       - "plugin.json"
       - "Directory.Build.props"
+      - "nuget.config"
   workflow_dispatch:
     inputs:
       version:
@@ -33,26 +32,15 @@ jobs:
         with:
           path: plugin
 
-      - name: Checkout OrionServerBE
-        uses: actions/checkout@v4
-        with:
-          repository: OrionBedrock/OrionServerBE
-          ref: main
-          path: OrionServerBE
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
 
       - name: Build
-        run: >
-          dotnet build OrionBuilding.csproj -c Release
-          -p:OrionServerBERoot=$GITHUB_WORKSPACE/OrionServerBE
-          -p:PluginsSiblingRoot=$GITHUB_WORKSPACE
+        run: dotnet build OrionBuilding.csproj -c Release
 
   publish:
-    # Trusted Publishing + NUGET_USER exist only on OrionBedrock (not forks).
     if: github.repository_owner == 'OrionBedrock'
     needs: build
     runs-on: ubuntu-latest
@@ -64,13 +52,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: plugin
-
-      - name: Checkout OrionServerBE
-        uses: actions/checkout@v4
-        with:
-          repository: OrionBedrock/OrionServerBE
-          ref: main
-          path: OrionServerBE
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -90,44 +71,22 @@ jobs:
           if INDEX=$(curl -fsSL "https://api.nuget.org/v3-flatcontainer/${ID_LOWER}/index.json" 2>/dev/null); then
             CURRENT=$(echo "$INDEX" | jq -r '.versions[-1] // empty')
           fi
-          echo "Latest on nuget.org: ${CURRENT:-<none>}"
-
-          bump_patch() {
-            local v="$1"
-            local major minor patch
-            IFS=. read -r major minor patch <<< "$v"
-            patch=${patch%%-*}
-            echo "${major}.${minor}.$((patch + 1))"
-          }
-
-          version_gt() {
-            [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | tail -1)" = "$1" ] && [ "$1" != "$2" ]
-          }
-
+          bump_patch() { local v="$1"; local major minor patch; IFS=. read -r major minor patch <<< "$v"; patch=${patch%%-*}; echo "${major}.${minor}.$((patch + 1))"; }
+          version_gt() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | tail -1)" = "$1" ] && [ "$1" != "$2" ]; }
           if [ -n "${VERSION_OVERRIDE}" ]; then
-            if [ -n "$CURRENT" ] && ! version_gt "$VERSION_OVERRIDE" "$CURRENT"; then
-              echo "::error::Override '${VERSION_OVERRIDE}' must be greater than latest '${CURRENT}'"
-              exit 1
-            fi
+            if [ -n "$CURRENT" ] && ! version_gt "$VERSION_OVERRIDE" "$CURRENT"; then exit 1; fi
             VER="$VERSION_OVERRIDE"
-            echo "Using override version: $VER"
           elif [ -z "$CURRENT" ]; then
             VER=$(grep -oP '(?<=<Version>)[^<]+' "$CSPROJ" | head -1)
-            echo "No nuget.org version; using csproj: $VER"
           else
             VER=$(bump_patch "$CURRENT")
-            echo "Auto-bump patch: $CURRENT -> $VER"
           fi
-
           echo "version=${VER}" >> "$GITHUB_OUTPUT"
-          echo "Resolved package version: $VER"
 
       - name: Pack
         run: |
           mkdir -p ../artifacts/nuget
           dotnet pack OrionBuilding.csproj -c Release -o ../artifacts/nuget \
-            -p:OrionServerBERoot=$GITHUB_WORKSPACE/OrionServerBE \
-            -p:PluginsSiblingRoot=$GITHUB_WORKSPACE \
             -p:Version=${{ steps.ver.outputs.version }} \
             -p:PackageVersion=${{ steps.ver.outputs.version }}
 
