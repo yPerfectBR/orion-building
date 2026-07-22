@@ -28,16 +28,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Orion.PluginContracts" Version="0.1.2">
+    <PackageReference Include="Orion.PluginContracts" Version="0.1.9">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Orion.Gameplay.Api" Version="0.1.2">
+    <PackageReference Include="Orion.Gameplay.Api" Version="0.1.9">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Orion.Api" Version="0.1.2">
+    <PackageReference Include="Orion.Api" Version="0.1.9">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Orion.Protocol" Version="0.1.2">
+    <PackageReference Include="Orion.Protocol" Version="0.1.9">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
